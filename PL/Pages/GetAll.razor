@@ -1,0 +1,230 @@
+﻿@page "/getall"
+@inject HttpClient httpClient
+@inject NavigationManager NavigationManager
+
+<h1 class="align-middle">Productos</h1>
+<br />
+<a class="btn btn-dark" href="/formulario">Agregar producto</a>
+<br />
+<br />
+
+<div class="alert alert-success" role="alert" style="display: @(showSuccessAlert ? "block" : "none")">
+    Producto eliminado correctamente
+    <button class="btn btn-success float-end" @onclick="CerrarAlerta">X</button>
+</div>
+
+<div class="alert alert-danger" role="alert" style="display: @(showErrorAlert ? "block" : "none")">
+    No se encontraron resultados para "@Nombre"
+    <button class="btn btn-danger" @onclick="CerrarAlerta">Cerrar</button>
+</div>
+
+<br />
+<br />
+
+<div class="d-flex">
+    <input type="text" placeholder="Buscar por nombre" class="form-control-sm" @bind="Nombre" />
+    <button class="btn btn-primary" @onclick="Buscar">Buscar</button>
+    <button class="btn btn-secondary" @onclick="LimpiarBusqueda">Limpiar</button>
+</div>
+
+<div class="table-responsive">
+    <br />
+    <table class="table table-striped table-bordered" id="myTable">
+        <thead>
+            <tr>
+                <th>Actualizar</th>
+                <th>IdProducto</th>
+                <th>Nombre</th>
+                <th>Precio</th>
+                <th>Categoría</th>
+                <th>Fecha creación</th>
+                <th>Borrar</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (pagedList != null && pagedList.Any())
+            {
+                foreach (var producto in pagedList)
+                {
+                    <tr>
+                        <td>
+                            <a class="btn btn-warning" href="@($"formulario/{producto.IdProducto}")">
+                                <i class="bi bi-vector-pen">Actualizar producto</i>
+                            </a>
+                        </td>
+                        <td>@producto.IdProducto</td>
+                        <td>@producto.Nombre</td>
+                        <td>@producto.Precio</td>
+                        <td>@producto.Categoria?.IdCategoria</td>
+
+                        <td>
+                            <button class="btn btn-danger" @onclick="(() => Delete(producto.IdProducto))" onfocus="return confirm('Seguro que quieres borrar el producto?')">
+                                <i class="fa-solid fa-trash-can"></i>Borrar
+                            </button>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="container">
+    <ul class="pagination">
+        @for (int i = 1; i <= TotalPages; i++)
+        {
+            var currentPage = i; // Capturar el valor de i en una variable intermedia
+            <li class="page-item @(currentPage == pageNumber ? "active" : "")">
+                <a class="page-link" @onclick="(() => ChangePage(currentPage))">@currentPage</a>
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    List<ML.Producto> list = new List<ML.Producto>();
+    List<ML.Producto> pagedList = new List<ML.Producto>();
+    int pageSize = 5;
+    int pageNumber = 1;
+    bool showSuccessAlert = false;
+    bool showErrorAlert = false;
+    public static string? Nombre { get; set; } = "";
+
+    int TotalPages => (int)Math.Ceiling((decimal)list.Count / pageSize);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetAllBlazor();
+        UpdatePagedList();
+    }
+
+    private async Task GetAllBlazor()
+    {
+        try
+        {
+            var productos = await httpClient.GetFromJsonAsync<List<ML.Producto>>("http://localhost:5192/api/Productos");
+
+            if (productos != null && productos.Any())
+            {
+                list = productos;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al obtener productos: {ex.Message}");
+        }
+    }
+
+    private async Task Delete(int IdProducto)
+    {
+        try
+        {
+            var response = await httpClient.DeleteAsync($"http://localhost:5192/api/Productos/Delete/{IdProducto}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                await GetAllBlazor();
+                showSuccessAlert = true;
+                showErrorAlert = false;
+                MostrarAlertaConTimeout(5000);
+                UpdatePagedList();
+            }
+            else
+            {
+                showErrorAlert = true;
+                showSuccessAlert = false;
+                MostrarAlertaConTimeout(5000);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al eliminar producto: {ex.Message}");
+        }
+    }
+
+    private async Task Buscar()
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(Nombre))
+            {
+                var productos = await httpClient.GetFromJsonAsync<List<ML.Producto>>("http://localhost:5192/api/Productos");
+                list.Clear();
+
+                if (productos != null && productos.Any())
+                {
+                    var resultados = productos.Where(p => p.Nombre.IndexOf(Nombre, StringComparison.OrdinalIgnoreCase) >= 0);
+                    list.AddRange(resultados);
+                }
+            }
+            else
+            {
+                await GetAllBlazor();
+            }
+
+            UpdatePagedList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al buscar producto: {ex.Message}");
+        }
+
+        if (pagedList.Count == 0)
+        {
+            showErrorAlert = true;
+            showSuccessAlert = false;
+            MostrarAlertaConTimeout(5000);
+        }
+        else
+        {
+            showErrorAlert = false;
+            showSuccessAlert = false;
+        }
+    }
+
+    private void LimpiarBusqueda()
+    {
+        Nombre = "";
+        GetAllBlazor();
+        UpdatePagedList();
+    }
+
+    private void CerrarAlerta()
+    {
+        showSuccessAlert = false;
+        showErrorAlert = false;
+    }
+
+    private async Task MostrarAlertaConTimeout(int tiempoEnMilisegundos)
+    {
+        await Task.Delay(tiempoEnMilisegundos);
+        CerrarAlerta();
+        StateHasChanged();
+    }
+
+    private void UpdatePagedList()
+    {
+        pagedList = list.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+        StateHasChanged();
+    }
+
+    private void ChangePage(int page)
+    {
+        try
+        {
+            if (page >= 1 && page <= TotalPages)
+            {
+                pageNumber = page;
+                UpdatePagedList();
+            }
+            else
+            {
+                Console.WriteLine("Número de página fuera de rango.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cambiar de página: {ex.Message}");
+        }
+    }
+}

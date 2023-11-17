@@ -1,0 +1,13 @@
+﻿@page "/"
+@namespace PL.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = "_Layout";
+    <!-- Agrega esto a tu _Imports.razor o _Host.cshtml -->
+    <script src="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/dist/js/alertify.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/dist/css/alertify.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/dist/css/themes/default.css" />
+
+}
+
+<component type="typeof(App)" render-mode="ServerPrerendered" />

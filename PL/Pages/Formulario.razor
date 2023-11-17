@@ -1,0 +1,173 @@
+﻿@page "/formulario/{IdProducto:int?}"
+@inject HttpClient httpClient
+@inject NavigationManager NavigationManager
+
+<h3>Actualizar producto</h3>
+
+@if (mostrarAlerta)
+{
+    <div class="alert @claseAlerta" role="alert">
+        @mensajeAlerta
+    </div>
+}
+
+<div class="gap-3">
+    <div class="form-group d-none">
+        <label for="idProducto">IdProducto:</label>
+        <input type="text" class="form-control" id="idProducto" @bind="producto.IdProducto" readonly />
+    </div>
+
+    <div class="form-group">
+        <label for="nombreProducto">Nombre del Producto:</label>
+        <input type="text" class="form-control" id="nombreProducto" @bind="producto.Nombre" />
+    </div>
+    <div class="form-group">
+        <label for="precio">Precio:</label>
+        <input type="text" class="form-control" id="precio" @bind="producto.Precio" />
+    </div>
+
+    <div class="form-group">
+        <label for="categoriaProducto">Categoría del Producto:</label>
+        <input type="text" class="form-control" id="categoriaProducto" @bind="producto.Categoria.IdCategoria" />
+    </div>
+
+    <button class="btn btn-primary" @onclick="InsertarActualizarProducto">Guardar</button>
+</div>
+
+@code {
+    ML.Producto producto = new ML.Producto
+    {
+        Categoria = new ML.Categoria()
+    };
+
+    bool mostrarAlerta = false;
+    string mensajeAlerta = "";
+    string claseAlerta = "";
+
+    [Parameter]
+    public int? IdProducto { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IdProducto.HasValue)
+        {
+            await CargarProducto();
+        }
+    }
+
+    private async Task CargarProducto()
+    {
+        var response = await httpClient.GetFromJsonAsync<ML.Producto>($"http://localhost:5192/api/Productos/GetById/{IdProducto}");
+
+        if (response != null)
+        {
+            producto = response;
+        }
+        else
+        {
+            MostrarAlerta("Producto no encontrado", "alert alert-warning");
+        }
+    }
+
+    public async Task InsertarActualizarProducto()
+    {
+
+        if (IdProducto.HasValue)
+        {
+            await ActualizarProducto();
+        }
+        else
+        {
+            await InsertarProducto();
+        }
+    }
+
+    private async Task InsertarProducto()
+    {
+        var response = await httpClient.PostAsJsonAsync("http://localhost:5192/api/Productos/Add", producto);
+
+        if (response.IsSuccessStatusCode)
+        {
+            // Operación exitosa, muestra una alerta verde
+            mostrarAlerta = true;
+            mensajeAlerta = "Producto agregado correctamente";
+            claseAlerta = "alert alert-success";
+
+            // Actualiza la interfaz de usuario
+            StateHasChanged();
+
+            // Oculta la alerta después de 3 segundos (3000 milisegundos)
+            await Task.Delay(3000);
+
+            mostrarAlerta = false;
+
+            // Actualiza la interfaz de usuario nuevamente
+            StateHasChanged();
+
+            // Redirige a la vista getall
+            NavigationManager.NavigateTo("getall");
+        }
+        else
+        {
+            // Operación fallida, muestra una alerta roja
+            mostrarAlerta = true;
+            mensajeAlerta = "Error al agregar el producto";
+            claseAlerta = "alert alert-danger";
+
+            // Actualiza la interfaz de usuario
+            StateHasChanged();
+        }
+    }
+
+    private async Task ActualizarProducto()
+    {
+        var response = await httpClient.PutAsJsonAsync("http://localhost:5192/api/Productos/Update", producto);
+
+        if (response.IsSuccessStatusCode)
+        {
+            // Operación exitosa, muestra una alerta verde
+            mostrarAlerta = true;
+            mensajeAlerta = "Producto actualizado correctamente";
+            claseAlerta = "alert alert-success";
+
+            // Actualiza la interfaz de usuario
+            StateHasChanged();
+
+            // Oculta la alerta después de 3 segundos (3000 milisegundos)
+            await Task.Delay(3000);
+
+            mostrarAlerta = false;
+
+            // Actualiza la interfaz de usuario nuevamente
+            StateHasChanged();
+
+            // Redirige a la vista getall
+            NavigationManager.NavigateTo("getall");
+        }
+        else
+        {
+            // Operación fallida, muestra una alerta roja
+            mostrarAlerta = true;
+            mensajeAlerta = "Error al actualizar el producto";
+            claseAlerta = "alert alert-danger";
+
+            // Actualiza la interfaz de usuario
+            StateHasChanged();
+        }
+    }
+
+    private void MostrarAlerta(string mensaje, string clase)
+    {
+        mostrarAlerta = true;
+        mensajeAlerta = mensaje;
+        claseAlerta = clase;
+
+        // Oculta la alerta después de 3 segundos (3000 milisegundos)
+        Task.Run(async () =>
+        {
+            await Task.Delay(3000);
+            mostrarAlerta = false;
+            StateHasChanged();
+        });
+    }
+}
